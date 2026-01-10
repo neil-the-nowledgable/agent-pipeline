@@ -1,10 +1,20 @@
 # neil-the-nowledgable Agent Pipeline
 
-> *"Automating wisdom, one pipeline at a time."*
+> *"The true measure of wealth is not what we extract, but what we sustain."*
 
 A GitHub Actions-powered multi-agent pipeline that automatically investigates production issues, designs fixes, implements them, validates with tests, and captures lessons learned.
 
 Created by **[@neil-the-nowledgable](https://github.com/neil-the-nowledgable)**
+
+## Why "Nowledgable"?
+
+**Nowledgable** describes understanding how to harness AI to unleash extraordinary productivity—not for its own sake, but in service of people, animals, and the living environment that sustains us all.
+
+The natural world is the cradle of all life. The true wealth of a people is measured by the health of their world—the interconnected web of life of which we are all part.
+
+This pipeline exists to amplify human wisdom, automate the tedious, and free time for what truly matters.
+
+[Read the full philosophy →](docs/NOWLEDGABLE.md)
 
 ## What This Does
 
@@ -122,9 +132,10 @@ See `sample-project/` for a test project with intentional bugs. Use it to:
 
 ## Documentation
 
+- [What is Nowledgable?](docs/NOWLEDGABLE.md) - The philosophy and mission
 - [Choosing Output Mode](docs/choosing-output-mode.md) - PR comments vs auto-commit
 - [Multi-Agent Pipeline Architecture](docs/multi-agent-pipeline.md) - How the pipeline works
-- [Helpful Accidents](docs/helpful-accidents.md) - Philosophy behind the design
+- [Helpful Accidents](docs/helpful-accidents.md) - On human-AI collaboration
 
 ## License
 
