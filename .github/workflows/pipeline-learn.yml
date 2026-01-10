@@ -1,0 +1,173 @@
+name: Pipeline - Update Knowledge
+
+on:
+  workflow_call:
+    inputs:
+      pr_number:
+        required: true
+        type: string
+      issue_number:
+        required: true
+        type: string
+
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to extract learnings from'
+        required: true
+        type: string
+
+  # Trigger on label
+  pull_request:
+    types: [labeled]
+
+jobs:
+  learn:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch' || github.event.label.name == 'pipeline:learn'
+
+    permissions:
+      contents: write
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Determine issue number
+        id: get-issue
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            # Extract from PR body
+            PR_BODY=$(gh pr view ${{ github.event.pull_request.number }} --json body -q .body)
+            ISSUE_NUMBER=$(echo "$PR_BODY" | grep -oE 'Closes #[0-9]+' | head -1 | tr -d 'Closes #')
+            echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+            echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+          else
+            echo "issue_number=${{ inputs.issue_number }}" >> $GITHUB_OUTPUT
+          fi
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Gather full incident context
+        id: context
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE_NUMBER="${{ steps.get-issue.outputs.issue_number }}"
+
+          # Get issue body and all comments
+          ISSUE_BODY=$(gh issue view $ISSUE_NUMBER --json body,title,comments -q '
+            "# Issue: " + .title + "\n\n" +
+            .body + "\n\n" +
+            "## Comments\n\n" +
+            ([.comments[].body] | join("\n\n---\n\n"))
+          ')
+
+          echo "context<<EOF" >> $GITHUB_OUTPUT
+          echo "$ISSUE_BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Run Knowledge Updater Agent
+        id: learn
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          LEARNINGS=$(npx @anthropic-ai/claude-code --print \
+            --system-prompt "$(cat agents/pipeline/knowledge-updater.md)" \
+            "Extract learnings from this completed incident:
+
+             ${{ steps.context.outputs.context }}
+
+             Follow your process to:
+             1. Identify what went wrong and why
+             2. Extract lessons learned
+             3. Suggest documentation updates
+             4. Identify patterns for prevention
+
+             Output the learning document in the specified format.")
+
+          echo "$LEARNINGS" > /tmp/learnings.md
+          echo "learnings<<EOF" >> $GITHUB_OUTPUT
+          echo "$LEARNINGS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Update lessons learned file
+        run: |
+          LESSONS_FILE="docs/LESSONS_LEARNED.md"
+
+          # Create file if it doesn't exist
+          if [ ! -f "$LESSONS_FILE" ]; then
+            mkdir -p docs
+            echo "# Lessons Learned
+
+          A living document of incidents and what we learned from them.
+
+          ---
+          " > "$LESSONS_FILE"
+          fi
+
+          # Append new learning
+          echo "
+          ${{ steps.learn.outputs.learnings }}
+
+          ---
+          " >> "$LESSONS_FILE"
+
+      - name: Commit documentation updates
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          if git diff --quiet; then
+            echo "No documentation changes"
+            exit 0
+          fi
+
+          git add docs/
+          git commit -m "docs: add lessons learned from issue #${{ steps.get-issue.outputs.issue_number }}
+
+          Automated knowledge update from pipeline.
+
+          Co-authored-by: Claude <noreply@anthropic.com>"
+
+          git push
+
+      - name: Update issue - pipeline complete
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE_NUMBER="${{ steps.get-issue.outputs.issue_number }}"
+
+          COMMENT="## 📚 Knowledge Updated
+
+          Lessons from this incident have been documented in \`docs/LESSONS_LEARNED.md\`.
+
+          ${{ steps.learn.outputs.learnings }}
+
+          ---
+          ## ✅ Pipeline Complete
+
+          All stages finished:
+          - [x] Investigation
+          - [x] Fix Design
+          - [x] Implementation
+          - [x] Testing
+          - [x] Knowledge Update
+
+          *This issue can now be closed after the PR is merged.*"
+
+          gh issue comment $ISSUE_NUMBER --body "$COMMENT"
+
+          # Update checklist
+          CURRENT_BODY=$(gh issue view $ISSUE_NUMBER --json body -q .body)
+          UPDATED_BODY=$(echo "$CURRENT_BODY" | sed 's/- \[ \] Knowledge Update/- [x] Knowledge Update/')
+          gh issue edit $ISSUE_NUMBER --body "$UPDATED_BODY"

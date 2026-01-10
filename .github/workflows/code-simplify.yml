@@ -1,0 +1,131 @@
+name: Code Simplifier
+
+# When does this run?
+on:
+  # Manual trigger - click "Run workflow" in GitHub Actions tab
+  workflow_dispatch:
+    inputs:
+      target_path:
+        description: 'Path to analyze (e.g., src/ or a specific file)'
+        required: false
+        default: '.'
+
+  # Automatic trigger on pull requests
+  pull_request:
+    types: [opened, synchronize]
+
+jobs:
+  simplify:
+    runs-on: ubuntu-latest
+
+    # Required permissions
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      # Step 1: Get the code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for comparing changes
+
+      # Step 2: Set up Node.js (required for Claude Code CLI)
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # Step 3: Run Claude Code to analyze (not modify) the code
+      - name: Analyze Code for Simplifications
+        id: analyze
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          # Determine what files to analyze
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -E '\.(js|ts|jsx|tsx|py|go|rs)$' || true)
+            TARGET="$CHANGED_FILES"
+          else
+            TARGET="${{ github.event.inputs.target_path }}"
+          fi
+
+          # Skip if no relevant files changed
+          if [ -z "$TARGET" ]; then
+            echo "No code files to analyze"
+            echo "has_suggestions=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # Run Claude Code in read-only analysis mode
+          # The --print flag outputs to stdout without interactive mode
+          SUGGESTIONS=$(npx @anthropic-ai/claude-code --print \
+            --system-prompt "$(cat agents/code-simplifier.md)" \
+            "Analyze these files for potential simplifications: $TARGET
+
+             IMPORTANT: Do NOT modify any files. Only READ and ANALYZE them.
+
+             For each file, output your suggestions in this format:
+
+             ## filename.ts
+
+             ### Suggestion 1: Brief title
+             **Current code:**
+             \`\`\`
+             the current code snippet
+             \`\`\`
+
+             **Suggested simplification:**
+             \`\`\`
+             the simplified version
+             \`\`\`
+
+             **Why:** Brief explanation of the improvement.
+
+             ---
+
+             If a file needs no changes, skip it entirely.
+             If no files need changes, just say 'No simplifications needed.'")
+
+          # Save suggestions to file (handles multiline output)
+          echo "$SUGGESTIONS" > /tmp/suggestions.md
+          echo "has_suggestions=true" >> $GITHUB_OUTPUT
+
+      # Step 4: Post suggestions as PR comment
+      - name: Post Suggestions to PR
+        if: github.event_name == 'pull_request' && steps.analyze.outputs.has_suggestions == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Read the suggestions
+          SUGGESTIONS=$(cat /tmp/suggestions.md)
+
+          # Skip if no meaningful suggestions
+          if echo "$SUGGESTIONS" | grep -q "No simplifications needed"; then
+            echo "No suggestions to post"
+            exit 0
+          fi
+
+          # Create the comment body
+          COMMENT="## Code Simplification Suggestions
+
+          The code-simplifier agent reviewed the changed files and has some suggestions:
+
+          ---
+
+          $SUGGESTIONS
+
+          ---
+
+          *To apply a suggestion, copy the code and update your PR.*
+          *This is an automated analysis - use your judgment on whether each suggestion improves the code.*"
+
+          # Post comment to PR
+          gh pr comment ${{ github.event.pull_request.number }} --body "$COMMENT"
+
+      # Step 5: For manual runs, just output to the log
+      - name: Output Suggestions (Manual Run)
+        if: github.event_name == 'workflow_dispatch' && steps.analyze.outputs.has_suggestions == 'true'
+        run: |
+          echo "=== Code Simplification Suggestions ==="
+          cat /tmp/suggestions.md

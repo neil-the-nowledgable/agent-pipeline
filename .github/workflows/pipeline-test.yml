@@ -1,0 +1,142 @@
+name: Pipeline - Test Fix
+
+on:
+  workflow_call:
+    inputs:
+      pr_number:
+        required: true
+        type: string
+      issue_number:
+        required: true
+        type: string
+
+  # Trigger on PR label
+  pull_request:
+    types: [labeled]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_call' || github.event.label.name == 'pipeline:test'
+
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+
+    steps:
+      - name: Determine PR number
+        id: get-pr
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "pr_number=${{ github.event.pull_request.number }}" >> $GITHUB_OUTPUT
+          else
+            echo "pr_number=${{ inputs.pr_number }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Checkout PR
+        uses: actions/checkout@v4
+        with:
+          ref: refs/pull/${{ steps.get-pr.outputs.pr_number }}/head
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: |
+          if [ -f "package.json" ]; then
+            npm ci || npm install
+          fi
+
+      - name: Run standard tests
+        id: standard-tests
+        continue-on-error: true
+        run: |
+          if [ -f "package.json" ]; then
+            npm test 2>&1 | tee /tmp/test-output.txt
+            echo "exit_code=$?" >> $GITHUB_OUTPUT
+          else
+            echo "No package.json found, skipping npm test"
+            echo "exit_code=0" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get test requirements from design
+        id: requirements
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Extract testing requirements from the fix design comment
+          PR_BODY=$(gh pr view ${{ steps.get-pr.outputs.pr_number }} --json body -q .body)
+          ISSUE_NUMBER=$(echo "$PR_BODY" | grep -oE '#[0-9]+' | head -1 | tr -d '#')
+
+          echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+
+          DESIGN=$(gh issue view $ISSUE_NUMBER --comments --json comments \
+            | jq -r '.comments[] | select(.body | contains("Fix Design")) | .body' \
+            | head -1)
+
+          echo "design<<EOF" >> $GITHUB_OUTPUT
+          echo "$DESIGN" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Run Tester Agent
+        id: tester
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          STANDARD_RESULTS=""
+          if [ -f /tmp/test-output.txt ]; then
+            STANDARD_RESULTS=$(cat /tmp/test-output.txt | tail -100)
+          fi
+
+          REPORT=$(npx @anthropic-ai/claude-code --print \
+            --system-prompt "$(cat agents/pipeline/tester.md)" \
+            "Validate the fix for PR #${{ steps.get-pr.outputs.pr_number }}.
+
+             Fix design (includes testing requirements):
+             ${{ steps.requirements.outputs.design }}
+
+             Standard test results:
+             Exit code: ${{ steps.standard-tests.outputs.exit_code }}
+             Output:
+             $STANDARD_RESULTS
+
+             Follow your testing process:
+             1. Check if standard tests passed
+             2. Verify the specific testing requirements from the design
+             3. Check for regressions
+             4. Provide a test report with pass/fail recommendation")
+
+          echo "report<<EOF" >> $GITHUB_OUTPUT
+          echo "$REPORT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Post test results to PR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COMMENT="## 🧪 Test Results
+
+          ${{ steps.tester.outputs.report }}
+
+          ---
+          **Next step:** If tests pass, Knowledge Updater will document learnings.
+
+          *To proceed, add label \`pipeline:learn\` or comment \`/proceed\`*"
+
+          gh pr comment ${{ steps.get-pr.outputs.pr_number }} --body "$COMMENT"
+
+      - name: Update issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE_NUMBER="${{ steps.requirements.outputs.issue_number }}"
+
+          if [ -n "$ISSUE_NUMBER" ]; then
+            CURRENT_BODY=$(gh issue view $ISSUE_NUMBER --json body -q .body)
+            UPDATED_BODY=$(echo "$CURRENT_BODY" | sed 's/- \[ \] Testing/- [x] Testing/')
+            gh issue edit $ISSUE_NUMBER --body "$UPDATED_BODY"
+          fi

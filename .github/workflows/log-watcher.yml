@@ -1,0 +1,116 @@
+name: Log Watcher - Pipeline Trigger
+
+on:
+  # Manual trigger for testing
+  workflow_dispatch:
+    inputs:
+      log_content:
+        description: 'Paste error log content to investigate'
+        required: true
+        type: string
+
+  # Trigger on log file changes (if logs are committed - unusual but possible)
+  push:
+    paths:
+      - 'logs/**'
+      - '*.log'
+
+  # Scheduled scan of external log location
+  # Uncomment and configure for production use
+  # schedule:
+  #   - cron: '*/15 * * * *'  # Every 15 minutes
+
+jobs:
+  detect-errors:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      issues: write
+
+    outputs:
+      has_errors: ${{ steps.scan.outputs.has_errors }}
+      issue_number: ${{ steps.create-issue.outputs.issue_number }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Scan for errors
+        id: scan
+        run: |
+          # For manual trigger, use provided content
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "${{ github.event.inputs.log_content }}" > /tmp/error.log
+            ERROR_CONTENT="${{ github.event.inputs.log_content }}"
+          else
+            # Scan log files for error patterns
+            ERROR_CONTENT=$(grep -rh -E "(ERROR|FATAL|Exception|CRITICAL)" logs/ 2>/dev/null | tail -50 || true)
+          fi
+
+          if [ -z "$ERROR_CONTENT" ]; then
+            echo "No errors found"
+            echo "has_errors=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Errors detected!"
+          echo "has_errors=true" >> $GITHUB_OUTPUT
+
+          # Save error content for next steps
+          echo "$ERROR_CONTENT" > /tmp/errors.txt
+
+          # Extract key details
+          ERROR_SUMMARY=$(echo "$ERROR_CONTENT" | head -5)
+          echo "error_summary<<EOF" >> $GITHUB_OUTPUT
+          echo "$ERROR_SUMMARY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Create investigation issue
+        id: create-issue
+        if: steps.scan.outputs.has_errors == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          ISSUE_BODY="## Error Detected
+
+          **Timestamp:** ${TIMESTAMP}
+          **Trigger:** ${{ github.event_name }}
+
+          ### Error Content
+
+          \`\`\`
+          ${{ steps.scan.outputs.error_summary }}
+          \`\`\`
+
+          ### Pipeline Status
+
+          - [ ] Investigation
+          - [ ] Fix Design
+          - [ ] Implementation
+          - [ ] Testing
+          - [ ] Knowledge Update
+
+          ---
+          *This issue was automatically created by the log-watcher pipeline.*
+          *Next step: Investigator agent will analyze and trace root cause.*"
+
+          ISSUE_URL=$(gh issue create \
+            --title "🔴 Error detected: $(echo '${{ steps.scan.outputs.error_summary }}' | head -1 | cut -c1-50)..." \
+            --body "$ISSUE_BODY" \
+            --label "pipeline:investigate")
+
+          ISSUE_NUMBER=$(echo $ISSUE_URL | grep -oE '[0-9]+$')
+          echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+          echo "Created issue #$ISSUE_NUMBER"
+
+  # Trigger the investigation workflow
+  investigate:
+    needs: detect-errors
+    if: needs.detect-errors.outputs.has_errors == 'true'
+    uses: ./.github/workflows/pipeline-investigate.yml
+    with:
+      issue_number: ${{ needs.detect-errors.outputs.issue_number }}
+    secrets: inherit

@@ -1,0 +1,91 @@
+name: Pipeline - Investigate
+
+on:
+  workflow_call:
+    inputs:
+      issue_number:
+        required: true
+        type: string
+
+jobs:
+  investigate:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for git blame
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Get issue details
+        id: issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh issue view ${{ inputs.issue_number }} --json body > /tmp/issue.json
+          ISSUE_BODY=$(cat /tmp/issue.json | jq -r '.body')
+          echo "issue_body<<EOF" >> $GITHUB_OUTPUT
+          echo "$ISSUE_BODY" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Run Investigator Agent
+        id: investigate
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          REPORT=$(npx @anthropic-ai/claude-code --print \
+            --system-prompt "$(cat agents/pipeline/investigator.md)" \
+            "Investigate this error from issue #${{ inputs.issue_number }}:
+
+             ${{ steps.issue.outputs.issue_body }}
+
+             Follow the investigation process in your instructions.
+             Use git blame, search the codebase, and trace to the originating PR.
+             Output your findings as a structured report.")
+
+          echo "$REPORT" > /tmp/investigation.md
+          echo "report<<EOF" >> $GITHUB_OUTPUT
+          echo "$REPORT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Update issue with investigation
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COMMENT="## 🔍 Investigation Report
+
+          ${{ steps.investigate.outputs.report }}
+
+          ---
+          **Next step:** Fix Designer agent will propose a solution.
+
+          *To proceed, add the label \`pipeline:design\` or comment \`/proceed\`*"
+
+          gh issue comment ${{ inputs.issue_number }} --body "$COMMENT"
+
+          # Update checklist
+          gh issue edit ${{ inputs.issue_number }} --body "$(gh issue view ${{ inputs.issue_number }} --json body -q .body | sed 's/- \[ \] Investigation/- [x] Investigation/')"
+
+      - name: Save investigation state
+        run: |
+          mkdir -p .claude/pipeline/investigations
+          echo '${{ steps.investigate.outputs.report }}' > .claude/pipeline/investigations/issue-${{ inputs.issue_number }}.md
+
+  # Optionally auto-trigger design phase
+  # Uncomment to make fully autonomous
+  # design:
+  #   needs: investigate
+  #   uses: ./.github/workflows/pipeline-design.yml
+  #   with:
+  #     issue_number: ${{ inputs.issue_number }}
+  #   secrets: inherit

@@ -1,0 +1,14 @@
+{
+  "name": "sample-project",
+  "version": "1.0.0",
+  "description": "Sample project for testing the neil_the_knowledgable agent pipeline",
+  "author": "neil_the_knowledgable",
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/",
+    "start": "node src/index.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

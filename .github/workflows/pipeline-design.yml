@@ -1,0 +1,104 @@
+name: Pipeline - Design Fix
+
+on:
+  workflow_call:
+    inputs:
+      issue_number:
+        required: true
+        type: string
+
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: 'Issue number to design fix for'
+        required: true
+        type: string
+
+  # Trigger on label
+  issues:
+    types: [labeled]
+
+jobs:
+  design:
+    runs-on: ubuntu-latest
+    # Only run if triggered by label 'pipeline:design' or workflow_call
+    if: github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch' || github.event.label.name == 'pipeline:design'
+
+    permissions:
+      contents: read
+      issues: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Determine issue number
+        id: get-issue
+        run: |
+          if [ "${{ github.event_name }}" = "issues" ]; then
+            echo "issue_number=${{ github.event.issue.number }}" >> $GITHUB_OUTPUT
+          else
+            echo "issue_number=${{ inputs.issue_number }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get investigation report
+        id: investigation
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Get all comments to find investigation report
+          INVESTIGATION=$(gh issue view ${{ steps.get-issue.outputs.issue_number }} --comments --json comments \
+            | jq -r '.comments[] | select(.body | contains("Investigation Report")) | .body' \
+            | head -1)
+
+          echo "report<<EOF" >> $GITHUB_OUTPUT
+          echo "$INVESTIGATION" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Run Fix Designer Agent
+        id: design
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          DESIGN=$(npx @anthropic-ai/claude-code --print \
+            --system-prompt "$(cat agents/pipeline/designer.md)" \
+            "Design a fix based on this investigation report:
+
+             ${{ steps.investigation.outputs.report }}
+
+             Follow your design process. Read the relevant code files.
+             Consider tradeoffs and alternatives.
+             Output a structured fix design document.")
+
+          echo "$DESIGN" > /tmp/design.md
+          echo "design<<EOF" >> $GITHUB_OUTPUT
+          echo "$DESIGN" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Update issue with design
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COMMENT="## 🎨 Fix Design
+
+          ${{ steps.design.outputs.design }}
+
+          ---
+          **Next step:** Implementer agent will create a PR with this fix.
+
+          *To proceed, add the label \`pipeline:implement\` or comment \`/proceed\`*"
+
+          gh issue comment ${{ steps.get-issue.outputs.issue_number }} --body "$COMMENT"
+
+          # Update checklist
+          CURRENT_BODY=$(gh issue view ${{ steps.get-issue.outputs.issue_number }} --json body -q .body)
+          UPDATED_BODY=$(echo "$CURRENT_BODY" | sed 's/- \[ \] Fix Design/- [x] Fix Design/')
+          gh issue edit ${{ steps.get-issue.outputs.issue_number }} --body "$UPDATED_BODY"

@@ -1,0 +1,25 @@
+{
+  "identity": {
+    "name": "neil_the_knowledgable",
+    "displayName": "Neil the Knowledgable",
+    "github": "neil_the_knowledgable",
+    "tagline": "Automating wisdom, one pipeline at a time"
+  },
+  "pipeline": {
+    "botName": "knowledgable-bot",
+    "commitSignature": "Automated by neil_the_knowledgable pipeline",
+    "issueLabels": {
+      "prefix": "ntk",
+      "investigate": "ntk:investigate",
+      "design": "ntk:design",
+      "implement": "ntk:implement",
+      "test": "ntk:test",
+      "learn": "ntk:learn"
+    }
+  },
+  "templates": {
+    "issueFooter": "\n---\n*Powered by [neil_the_knowledgable](https://github.com/neil_the_knowledgable) Agent Pipeline*",
+    "prFooter": "\n---\n*Automated fix by [neil_the_knowledgable](https://github.com/neil_the_knowledgable) Pipeline*\n\nCo-authored-by: neil_the_knowledgable <neil_the_knowledgable@users.noreply.github.com>",
+    "lessonHeader": "# Lessons Learned\n\n> *\"Knowledge shared is knowledge squared.\"* — neil_the_knowledgable\n\nA living document of incidents and what we learned from them.\n"
+  }
+}
