@@ -20,6 +20,12 @@ on:
   # schedule:
   #   - cron: '*/15 * * * *'  # Every 15 minutes
 
+# Top-level permissions for all jobs including called workflows
+permissions:
+  contents: read
+  issues: write
+  pull-requests: read
+
 jobs:
   detect-errors:
     runs-on: ubuntu-latest
