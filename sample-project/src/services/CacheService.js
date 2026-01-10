@@ -1,6 +1,6 @@
 /**
  * CacheService - Generic caching layer
- * @author neil_the_knowledgable
+ * @author neil-the-nowledgable
  */
 
 const cache = new Map();

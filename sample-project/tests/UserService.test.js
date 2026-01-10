@@ -1,6 +1,6 @@
 /**
  * UserService Tests
- * @author neil_the_knowledgable
+ * @author neil-the-nowledgable
  */
 
 import { describe, it, beforeEach } from 'node:test';

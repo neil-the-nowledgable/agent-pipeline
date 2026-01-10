@@ -1,10 +1,10 @@
-# neil_the_knowledgable Agent Pipeline
+# neil-the-nowledgable Agent Pipeline
 
 > *"Automating wisdom, one pipeline at a time."*
 
 A GitHub Actions-powered multi-agent pipeline that automatically investigates production issues, designs fixes, implements them, validates with tests, and captures lessons learned.
 
-Created by **[@neil_the_knowledgable](https://github.com/neil_the_knowledgable)**
+Created by **[@neil-the-nowledgable](https://github.com/neil-the-nowledgable)**
 
 ## What This Does
 
@@ -132,4 +132,4 @@ MIT - Use freely, attribute kindly.
 
 ---
 
-*Built with Claude by [@neil_the_knowledgable](https://github.com/neil_the_knowledgable)*
+*Built with Claude by [@neil-the-nowledgable](https://github.com/neil-the-nowledgable)*

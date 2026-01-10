@@ -1,6 +1,6 @@
 /**
  * UserService - Handles user data operations
- * @author neil_the_knowledgable
+ * @author neil-the-nowledgable
  */
 
 const userCache = new Map();

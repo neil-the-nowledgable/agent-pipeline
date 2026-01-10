@@ -1,8 +1,8 @@
 {
   "name": "sample-project",
   "version": "1.0.0",
-  "description": "Sample project for testing the neil_the_knowledgable agent pipeline",
-  "author": "neil_the_knowledgable",
+  "description": "Sample project for testing the neil-the-nowledgable agent pipeline",
+  "author": "neil-the-nowledgable",
   "type": "module",
   "scripts": {
     "test": "node --test tests/",

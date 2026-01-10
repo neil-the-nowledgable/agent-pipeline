@@ -1,12 +1,12 @@
 # Publishing to GitHub
 
-Guide for publishing the neil_the_knowledgable Agent Pipeline.
+Guide for publishing the neil-the-nowledgable Agent Pipeline.
 
 ## Repository Structure
 
 ### Option A: Single Repository (Recommended for Starting)
 
-Publish everything to one repo: `neil_the_knowledgable/agent-pipeline`
+Publish everything to one repo: `neil-the-nowledgable/agent-pipeline`
 
 ```
 agent-pipeline/
@@ -25,7 +25,7 @@ agent-pipeline/
 
 Split into focused repos:
 
-1. **`neil_the_knowledgable/agent-pipeline`** - The core pipeline
+1. **`neil-the-nowledgable/agent-pipeline`** - The core pipeline
    ```
    agent-pipeline/
    ├── .github/workflows/
@@ -34,7 +34,7 @@ Split into focused repos:
    └── README.md
    ```
 
-2. **`neil_the_knowledgable/agent-pipeline-example`** - Demo project
+2. **`neil-the-nowledgable/agent-pipeline-example`** - Demo project
    ```
    agent-pipeline-example/
    ├── sample-project files...
@@ -103,7 +103,7 @@ Create `LICENSE` file with MIT license (or your preference).
 ### 3. Update Brand References
 
 Search and replace placeholder references:
-- Ensure `neil_the_knowledgable` appears consistently
+- Ensure `neil-the-nowledgable` appears consistently
 - Update any example URLs to your actual GitHub
 
 ### 4. Test the Workflows
@@ -134,11 +134,11 @@ cd /path/to/github-actions
 git init
 
 # Create repo on GitHub first, then:
-git remote add origin git@github.com:neil_the_knowledgable/agent-pipeline.git
+git remote add origin git@github.com:neil-the-nowledgable/agent-pipeline.git
 
 # Add files
 git add .
-git commit -m "Initial commit: neil_the_knowledgable Agent Pipeline
+git commit -m "Initial commit: neil-the-nowledgable Agent Pipeline
 
 Multi-agent pipeline for automated issue investigation and resolution.
 
@@ -172,7 +172,7 @@ After publishing:
 3. Title: `v1.0.0 - Initial Release`
 4. Description:
    ```markdown
-   ## neil_the_knowledgable Agent Pipeline v1.0.0
+   ## neil-the-nowledgable Agent Pipeline v1.0.0
 
    Initial release of the multi-agent pipeline for automated issue resolution.
 
@@ -204,7 +204,7 @@ It's a GitHub Actions-powered system that uses AI agents to automatically:
 
 Think of it as having a tireless junior dev that never forgets to update the docs.
 
-Check it out: github.com/neil_the_knowledgable/agent-pipeline
+Check it out: github.com/neil-the-nowledgable/agent-pipeline
 
 #AI #DevOps #Automation #OpenSource
 ```
@@ -237,4 +237,4 @@ When Claude improves or you learn better prompts:
 
 ---
 
-*Good luck with the launch! - neil_the_knowledgable*
+*Good luck with the launch! - neil-the-nowledgable*

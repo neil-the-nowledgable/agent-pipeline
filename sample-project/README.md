@@ -1,6 +1,6 @@
 # Sample Project
 
-A test project with intentional bugs for testing the neil_the_knowledgable agent pipeline.
+A test project with intentional bugs for testing the neil-the-nowledgable agent pipeline.
 
 ## Intentional Issues
 

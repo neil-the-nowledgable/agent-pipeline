@@ -1,6 +1,6 @@
 /**
  * Sample Application Entry Point
- * @author neil_the_knowledgable
+ * @author neil-the-nowledgable
  *
  * This application demonstrates common issues that the
  * agent pipeline can detect and fix.

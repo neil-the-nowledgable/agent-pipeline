@@ -1,13 +1,13 @@
 {
   "identity": {
-    "name": "neil_the_knowledgable",
+    "name": "neil-the-nowledgable",
     "displayName": "Neil the Knowledgable",
-    "github": "neil_the_knowledgable",
+    "github": "neil-the-nowledgable",
     "tagline": "Automating wisdom, one pipeline at a time"
   },
   "pipeline": {
     "botName": "knowledgable-bot",
-    "commitSignature": "Automated by neil_the_knowledgable pipeline",
+    "commitSignature": "Automated by neil-the-nowledgable pipeline",
     "issueLabels": {
       "prefix": "ntk",
       "investigate": "ntk:investigate",
@@ -18,8 +18,8 @@
     }
   },
   "templates": {
-    "issueFooter": "\n---\n*Powered by [neil_the_knowledgable](https://github.com/neil_the_knowledgable) Agent Pipeline*",
-    "prFooter": "\n---\n*Automated fix by [neil_the_knowledgable](https://github.com/neil_the_knowledgable) Pipeline*\n\nCo-authored-by: neil_the_knowledgable <neil_the_knowledgable@users.noreply.github.com>",
-    "lessonHeader": "# Lessons Learned\n\n> *\"Knowledge shared is knowledge squared.\"* — neil_the_knowledgable\n\nA living document of incidents and what we learned from them.\n"
+    "issueFooter": "\n---\n*Powered by [neil-the-nowledgable](https://github.com/neil-the-nowledgable) Agent Pipeline*",
+    "prFooter": "\n---\n*Automated fix by [neil-the-nowledgable](https://github.com/neil-the-nowledgable) Pipeline*\n\nCo-authored-by: neil-the-nowledgable <neil-the-nowledgable@users.noreply.github.com>",
+    "lessonHeader": "# Lessons Learned\n\n> *\"Knowledge shared is knowledge squared.\"* — neil-the-nowledgable\n\nA living document of incidents and what we learned from them.\n"
   }
 }
