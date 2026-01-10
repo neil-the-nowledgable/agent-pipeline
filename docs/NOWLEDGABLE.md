@@ -29,13 +29,44 @@ When building with AI:
 
 ## Why "Nowledgable"?
 
-The intentional spelling reflects a departure from conventional thinking:
+The intentional spelling is a deliberate departure from "knowledge"—a word that carries the weight of how it has been institutionalized, weaponized, and gatekept.
 
-- **Knowledge** alone is insufficient—it must be applied wisely
-- **Knowing** without **doing** changes nothing
-- The missing "k" represents the gap between information and impact
+### The Problem with "Knowledge"
 
-*Nowledgable* bridges that gap. It is knowledge in motion, understanding in action, wisdom deployed through tools that multiply human capacity for good.
+The Western concept of "knowledge" has been wielded as a tool of erasure and oppression:
+
+- **Colonial education systems** were designed to deny, dismiss, and destroy indigenous knowledge systems that had sustained communities and ecosystems for millennia
+- **"Educated" became a weapon**—used to delegitimize ways of knowing that didn't conform to European frameworks
+- **Indigenous peoples were erased**—their existence ignored, their wisdom dismissed as primitive, their lands declared "empty" by those who refused to see
+- **The violence continues**—this is not history, but ongoing reality
+
+### The Doctrine of Discovery
+
+The legal and moral framework of colonialism persists in law today:
+
+- The **Doctrine of Discovery** (1493) declared that "discovered" lands belonged to European Christian nations, treating indigenous inhabitants as non-persons
+- The **United States Supreme Court** has cited this doctrine as precedent in common law (Johnson v. M'Intosh, 1823, and cases since)
+- **There is nothing in the Constitution** that establishes or authorizes the Doctrine of Discovery—yet it remains embedded in property law
+- This is not ancient history—it shapes land rights, tribal sovereignty, and legal standing *today*
+
+### The Missing "K"
+
+The absent letter represents what has been deliberately excluded:
+
+- Indigenous knowledge systems
+- Ways of knowing that center relationship over extraction
+- Wisdom that understands humans as *part of* rather than *apart from* the natural world
+- The voices that were silenced, the libraries that were burned, the elders who were forbidden to teach
+
+### Reclaiming the Word
+
+**Nowledgable** is knowledge *reconsidered*:
+
+- Not the knowledge that justified genocide, but the wisdom that sustains life
+- Not the knowledge that extracted and exploited, but the understanding that all things are connected
+- Not the knowledge that declared itself supreme, but the humility to learn from what was dismissed
+
+To be *nowledgable* is to recognize that true understanding includes knowing *what we have refused to know*—and doing the work to learn it anyway.
 
 ## The neil-the-nowledgable Mission
 
