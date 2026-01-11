@@ -8,6 +8,16 @@ on:
         description: 'Paste error log content to investigate'
         required: true
         type: string
+      service_name:
+        description: 'Service name (for o11y correlation)'
+        required: false
+        type: string
+        default: ''
+      use_o11y:
+        description: 'Use O11y-enhanced investigation (requires observability stack)'
+        required: false
+        type: boolean
+        default: false
 
   # Trigger on log file changes (if logs are committed - unusual but possible)
   push:
@@ -37,6 +47,7 @@ jobs:
     outputs:
       has_errors: ${{ steps.scan.outputs.has_errors }}
       issue_number: ${{ steps.create-issue.outputs.issue_number }}
+      error_summary: ${{ steps.scan.outputs.error_summary }}
 
     steps:
       - name: Checkout repository
@@ -112,11 +123,23 @@ jobs:
           echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
           echo "Created issue #$ISSUE_NUMBER"
 
-  # Trigger the investigation workflow
+  # Trigger the basic investigation workflow
   investigate:
     needs: detect-errors
-    if: needs.detect-errors.outputs.has_errors == 'true'
+    if: needs.detect-errors.outputs.has_errors == 'true' && github.event.inputs.use_o11y != 'true'
     uses: ./.github/workflows/pipeline-investigate.yml
     with:
+      issue_number: ${{ needs.detect-errors.outputs.issue_number }}
+    secrets: inherit
+
+  # Trigger the o11y-enhanced investigation workflow
+  investigate-o11y:
+    needs: detect-errors
+    if: needs.detect-errors.outputs.has_errors == 'true' && github.event.inputs.use_o11y == 'true'
+    uses: ./.github/workflows/o11y-investigate.yml
+    with:
+      incident_summary: "Error detected in logs"
+      service: ${{ github.event.inputs.service_name || 'unknown' }}
+      severity: high
       issue_number: ${{ needs.detect-errors.outputs.issue_number }}
     secrets: inherit

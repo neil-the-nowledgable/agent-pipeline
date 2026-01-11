@@ -1,0 +1,230 @@
+name: O11y - Investigate Incident
+
+on:
+  # Triggered by Alertmanager webhook
+  repository_dispatch:
+    types: [alert-fired]
+
+  # Manual trigger for investigations
+  workflow_dispatch:
+    inputs:
+      incident_summary:
+        description: 'Brief description of the incident'
+        required: true
+        type: string
+      service:
+        description: 'Affected service name'
+        required: true
+        type: string
+      start_time:
+        description: 'When the incident started (ISO 8601)'
+        required: false
+        type: string
+      severity:
+        description: 'Incident severity'
+        required: true
+        type: choice
+        options:
+          - critical
+          - high
+          - medium
+          - low
+      create_issue:
+        description: 'Create GitHub issue for tracking'
+        required: false
+        type: boolean
+        default: true
+
+  # Can also be called from other workflows
+  workflow_call:
+    inputs:
+      incident_summary:
+        required: true
+        type: string
+      service:
+        required: true
+        type: string
+      start_time:
+        required: false
+        type: string
+      severity:
+        required: true
+        type: string
+      alert_data:
+        required: false
+        type: string
+      issue_number:
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  investigate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Parse incident context
+        id: context
+        run: |
+          # Handle different trigger types
+          if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+            # From Alertmanager webhook
+            echo "summary=${{ github.event.client_payload.alert.annotations.summary }}" >> $GITHUB_OUTPUT
+            echo "service=${{ github.event.client_payload.alert.labels.service }}" >> $GITHUB_OUTPUT
+            echo "severity=${{ github.event.client_payload.alert.labels.severity }}" >> $GITHUB_OUTPUT
+            echo "start_time=${{ github.event.client_payload.alert.startsAt }}" >> $GITHUB_OUTPUT
+
+            # Capture full alert data
+            ALERT_DATA=$(echo '${{ toJson(github.event.client_payload) }}' | jq -r '.')
+            echo "alert_data<<EOF" >> $GITHUB_OUTPUT
+            echo "$ALERT_DATA" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+          elif [ "${{ github.event_name }}" = "workflow_call" ]; then
+            echo "summary=${{ inputs.incident_summary }}" >> $GITHUB_OUTPUT
+            echo "service=${{ inputs.service }}" >> $GITHUB_OUTPUT
+            echo "severity=${{ inputs.severity }}" >> $GITHUB_OUTPUT
+            echo "start_time=${{ inputs.start_time }}" >> $GITHUB_OUTPUT
+            echo "alert_data=${{ inputs.alert_data }}" >> $GITHUB_OUTPUT
+            echo "issue_number=${{ inputs.issue_number }}" >> $GITHUB_OUTPUT
+          else
+            # Manual dispatch
+            echo "summary=${{ inputs.incident_summary }}" >> $GITHUB_OUTPUT
+            echo "service=${{ inputs.service }}" >> $GITHUB_OUTPUT
+            echo "severity=${{ inputs.severity }}" >> $GITHUB_OUTPUT
+            echo "start_time=${{ inputs.start_time || 'now' }}" >> $GITHUB_OUTPUT
+            echo "create_issue=${{ inputs.create_issue }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create incident issue
+        id: create-issue
+        if: github.event_name == 'workflow_dispatch' && inputs.create_issue == true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "## Incident Summary"
+            echo ""
+            echo "**Service:** ${{ steps.context.outputs.service }}"
+            echo "**Severity:** ${{ steps.context.outputs.severity }}"
+            echo "**Started:** ${{ steps.context.outputs.start_time }}"
+            echo ""
+            echo "${{ steps.context.outputs.summary }}"
+            echo ""
+            echo "## Investigation Progress"
+            echo ""
+            echo "- [ ] Initial triage"
+            echo "- [ ] Root cause identified"
+            echo "- [ ] Fix implemented"
+            echo "- [ ] Post-incident review"
+            echo ""
+            echo "---"
+            echo "*Automated investigation in progress...*"
+          } > /tmp/issue_body.md
+
+          ISSUE_URL=$(gh issue create \
+            --title "[${{ steps.context.outputs.severity }}] ${{ steps.context.outputs.summary }}" \
+            --body-file /tmp/issue_body.md \
+            --label "incident,${{ steps.context.outputs.severity }}")
+
+          ISSUE_NUMBER=$(echo "$ISSUE_URL" | grep -oE '[0-9]+$')
+          echo "issue_number=$ISSUE_NUMBER" >> $GITHUB_OUTPUT
+          echo "issue_url=$ISSUE_URL" >> $GITHUB_OUTPUT
+
+      - name: Determine issue number
+        id: get-issue
+        run: |
+          if [ -n "${{ steps.create-issue.outputs.issue_number }}" ]; then
+            echo "issue_number=${{ steps.create-issue.outputs.issue_number }}" >> $GITHUB_OUTPUT
+          elif [ -n "${{ inputs.issue_number }}" ]; then
+            echo "issue_number=${{ inputs.issue_number }}" >> $GITHUB_OUTPUT
+          else
+            echo "issue_number=" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run O11y Investigator Agent
+        id: investigate
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          PROMETHEUS_URL: ${{ secrets.PROMETHEUS_URL }}
+          LOKI_URL: ${{ secrets.LOKI_URL }}
+          TEMPO_URL: ${{ secrets.TEMPO_URL }}
+          PYROSCOPE_URL: ${{ secrets.PYROSCOPE_URL }}
+          GRAFANA_TOKEN: ${{ secrets.GRAFANA_TOKEN }}
+        run: |
+          REPORT=$(npx @anthropic-ai/claude-code --print \
+            --system-prompt "$(cat agents/pipeline/o11y-investigator.md)" \
+            "Investigate this production incident:
+
+             **Summary:** ${{ steps.context.outputs.summary }}
+             **Service:** ${{ steps.context.outputs.service }}
+             **Severity:** ${{ steps.context.outputs.severity }}
+             **Started:** ${{ steps.context.outputs.start_time }}
+
+             Alert Data:
+             ${{ steps.context.outputs.alert_data }}
+
+             Follow your investigation workflow:
+             1. Define the symptom clearly
+             2. Gather evidence from metrics, logs, traces
+             3. Form hypotheses based on evidence
+             4. Search the codebase to validate findings
+             5. Identify root cause with confidence
+             6. Recommend immediate actions and prevention
+
+             Use git blame and git log to trace any suspicious code to its source.
+             Correlate telemetry signals with source code locations.
+             Output your findings in the structured format.")
+
+          echo "$REPORT" > /tmp/investigation.md
+          echo "report<<EOF" >> $GITHUB_OUTPUT
+          echo "$REPORT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Post investigation to issue
+        if: steps.get-issue.outputs.issue_number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ISSUE_NUMBER="${{ steps.get-issue.outputs.issue_number }}"
+
+          {
+            echo "## O11y Investigation Report"
+            echo ""
+            cat /tmp/investigation.md
+            echo ""
+            echo "---"
+            echo "**Environment:**"
+            echo "- Prometheus: ${{ secrets.PROMETHEUS_URL && 'configured' || 'not configured' }}"
+            echo "- Loki: ${{ secrets.LOKI_URL && 'configured' || 'not configured' }}"
+            echo "- Tempo: ${{ secrets.TEMPO_URL && 'configured' || 'not configured' }}"
+            echo ""
+            echo "*To proceed with fix design, add label \`pipeline:design\` or comment \`/proceed\`*"
+          } > /tmp/comment.md
+
+          gh issue comment $ISSUE_NUMBER --body-file /tmp/comment.md
+
+      - name: Output investigation report
+        run: |
+          echo "## Investigation Complete"
+          echo ""
+          cat /tmp/investigation.md
+
+      - name: Save investigation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: o11y-investigation-${{ github.run_id }}
+          path: /tmp/investigation.md
+          retention-days: 30
