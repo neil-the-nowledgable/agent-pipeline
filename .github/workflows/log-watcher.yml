@@ -35,6 +35,7 @@ permissions:
   contents: read
   issues: write
   pull-requests: read
+  actions: write
 
 jobs:
   detect-errors:
