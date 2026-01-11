@@ -11,7 +11,10 @@ const userCache = new Map();
  */
 export function getUserProfile(userId) {
   const u = userCache.get(userId);
-  return u.profile;  // BUG: u could be undefined
+  if (!u) {
+    return null;  // Gracefully handle cache miss
+  }
+  return u.profile;
 }
 
 /**

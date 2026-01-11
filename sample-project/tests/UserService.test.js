@@ -31,12 +31,10 @@ describe('UserService', () => {
       assert.deepStrictEqual(result, userData.profile);
     });
 
-    // This test documents the bug - it will fail
     it('should handle missing user gracefully', () => {
-      // BUG: This currently throws instead of returning null/undefined
-      assert.throws(() => {
-        getUserProfile('non-existent-user');
-      }, TypeError);
+      // Fixed: Now returns null for cache miss instead of throwing
+      const result = getUserProfile('non-existent-user');
+      assert.strictEqual(result, null);
     });
   });
 
