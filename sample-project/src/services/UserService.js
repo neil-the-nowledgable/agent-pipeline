@@ -7,11 +7,14 @@ const userCache = new Map();
 
 /**
  * Get user profile by ID
- * BUG: Does not handle cache miss - will throw when user not in cache
+ * Returns null if user not found in cache
  */
 export function getUserProfile(userId) {
   const u = userCache.get(userId);
-  return u.profile;  // BUG: throws TypeError if u is undefined
+  if (!u) {
+    return null;  // Gracefully handle cache miss
+  }
+  return u.profile;
 }
 
 /**
