@@ -32,7 +32,8 @@ describe('UserService', () => {
     });
 
     it('should handle missing user gracefully', () => {
-      // Fixed: Now returns null for cache miss instead of throwing
+      // BUG: Currently throws TypeError on cache miss
+      // This test documents the expected behavior after fix
       const result = getUserProfile('non-existent-user');
       assert.strictEqual(result, null);
     });
