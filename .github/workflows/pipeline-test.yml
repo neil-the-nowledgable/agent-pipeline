@@ -110,24 +110,25 @@ jobs:
              3. Check for regressions
              4. Provide a test report with pass/fail recommendation")
 
-          echo "report<<EOF" >> $GITHUB_OUTPUT
-          echo "$REPORT" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "$REPORT" > /tmp/test-report.md
 
       - name: Post test results to PR
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          COMMENT="## 🧪 Test Results
+          # Build comment from file to avoid shell escaping issues
+          {
+            echo "## 🧪 Test Results"
+            echo ""
+            cat /tmp/test-report.md
+            echo ""
+            echo "---"
+            echo "**Next step:** If tests pass, Knowledge Updater will document learnings."
+            echo ""
+            echo "*To proceed, add label \`pipeline:learn\` or comment \`/proceed\`*"
+          } > /tmp/comment.md
 
-          ${{ steps.tester.outputs.report }}
-
-          ---
-          **Next step:** If tests pass, Knowledge Updater will document learnings.
-
-          *To proceed, add label \`pipeline:learn\` or comment \`/proceed\`*"
-
-          gh pr comment ${{ steps.get-pr.outputs.pr_number }} --body "$COMMENT"
+          gh pr comment ${{ steps.get-pr.outputs.pr_number }} --body-file /tmp/comment.md
 
       - name: Update issue
         env:
@@ -136,7 +137,7 @@ jobs:
           ISSUE_NUMBER="${{ steps.requirements.outputs.issue_number }}"
 
           if [ -n "$ISSUE_NUMBER" ]; then
-            CURRENT_BODY=$(gh issue view $ISSUE_NUMBER --json body -q .body)
-            UPDATED_BODY=$(echo "$CURRENT_BODY" | sed 's/- \[ \] Testing/- [x] Testing/')
-            gh issue edit $ISSUE_NUMBER --body "$UPDATED_BODY"
+            gh issue view $ISSUE_NUMBER --json body -q .body > /tmp/current_body.txt
+            sed 's/- \[ \] Testing/- [x] Testing/' /tmp/current_body.txt > /tmp/updated_body.txt
+            gh issue edit $ISSUE_NUMBER --body-file /tmp/updated_body.txt
           fi

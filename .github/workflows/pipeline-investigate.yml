@@ -62,24 +62,30 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          COMMENT="## 🔍 Investigation Report
+          # Build comment from file to avoid shell escaping issues
+          {
+            echo "## 🔍 Investigation Report"
+            echo ""
+            cat /tmp/investigation.md
+            echo ""
+            echo "---"
+            echo "**Next step:** Fix Designer agent will propose a solution."
+            echo ""
+            echo "*To proceed, add the label \`pipeline:design\` or comment \`/proceed\`*"
+          } > /tmp/comment.md
 
-          ${{ steps.investigate.outputs.report }}
-
-          ---
-          **Next step:** Fix Designer agent will propose a solution.
-
-          *To proceed, add the label \`pipeline:design\` or comment \`/proceed\`*"
-
-          gh issue comment ${{ inputs.issue_number }} --body "$COMMENT"
+          # Post comment using file input
+          gh issue comment ${{ inputs.issue_number }} --body-file /tmp/comment.md
 
           # Update checklist
-          gh issue edit ${{ inputs.issue_number }} --body "$(gh issue view ${{ inputs.issue_number }} --json body -q .body | sed 's/- \[ \] Investigation/- [x] Investigation/')"
+          gh issue view ${{ inputs.issue_number }} --json body -q .body > /tmp/current_body.txt
+          sed 's/- \[ \] Investigation/- [x] Investigation/' /tmp/current_body.txt > /tmp/updated_body.txt
+          gh issue edit ${{ inputs.issue_number }} --body-file /tmp/updated_body.txt
 
       - name: Save investigation state
         run: |
           mkdir -p .claude/pipeline/investigations
-          echo '${{ steps.investigate.outputs.report }}' > .claude/pipeline/investigations/issue-${{ inputs.issue_number }}.md
+          cp /tmp/investigation.md .claude/pipeline/investigations/issue-${{ inputs.issue_number }}.md
 
   # Optionally auto-trigger design phase
   # Uncomment to make fully autonomous

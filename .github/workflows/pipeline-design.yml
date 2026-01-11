@@ -87,18 +87,22 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          COMMENT="## 🎨 Fix Design
+          # Build comment from file to avoid shell escaping issues
+          {
+            echo "## 🎨 Fix Design"
+            echo ""
+            cat /tmp/design.md
+            echo ""
+            echo "---"
+            echo "**Next step:** Implementer agent will create a PR with this fix."
+            echo ""
+            echo "*To proceed, add the label \`pipeline:implement\` or comment \`/proceed\`*"
+          } > /tmp/comment.md
 
-          ${{ steps.design.outputs.design }}
-
-          ---
-          **Next step:** Implementer agent will create a PR with this fix.
-
-          *To proceed, add the label \`pipeline:implement\` or comment \`/proceed\`*"
-
-          gh issue comment ${{ steps.get-issue.outputs.issue_number }} --body "$COMMENT"
+          # Post comment using file input
+          gh issue comment ${{ steps.get-issue.outputs.issue_number }} --body-file /tmp/comment.md
 
           # Update checklist
-          CURRENT_BODY=$(gh issue view ${{ steps.get-issue.outputs.issue_number }} --json body -q .body)
-          UPDATED_BODY=$(echo "$CURRENT_BODY" | sed 's/- \[ \] Fix Design/- [x] Fix Design/')
-          gh issue edit ${{ steps.get-issue.outputs.issue_number }} --body "$UPDATED_BODY"
+          gh issue view ${{ steps.get-issue.outputs.issue_number }} --json body -q .body > /tmp/current_body.txt
+          sed 's/- \[ \] Fix Design/- [x] Fix Design/' /tmp/current_body.txt > /tmp/updated_body.txt
+          gh issue edit ${{ steps.get-issue.outputs.issue_number }} --body-file /tmp/updated_body.txt

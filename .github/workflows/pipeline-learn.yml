@@ -107,20 +107,20 @@ jobs:
           # Create file if it doesn't exist
           if [ ! -f "$LESSONS_FILE" ]; then
             mkdir -p docs
-            echo "# Lessons Learned
+            cat > "$LESSONS_FILE" << 'HEADER'
+          # Lessons Learned
 
           A living document of incidents and what we learned from them.
 
           ---
-          " > "$LESSONS_FILE"
+          HEADER
           fi
 
-          # Append new learning
-          echo "
-          ${{ steps.learn.outputs.learnings }}
-
-          ---
-          " >> "$LESSONS_FILE"
+          # Append new learning from file
+          echo "" >> "$LESSONS_FILE"
+          cat /tmp/learnings.md >> "$LESSONS_FILE"
+          echo "" >> "$LESSONS_FILE"
+          echo "---" >> "$LESSONS_FILE"
 
       - name: Commit documentation updates
         run: |
@@ -147,27 +147,30 @@ jobs:
         run: |
           ISSUE_NUMBER="${{ steps.get-issue.outputs.issue_number }}"
 
-          COMMENT="## 📚 Knowledge Updated
+          # Build comment from file to avoid shell escaping issues
+          {
+            echo "## 📚 Knowledge Updated"
+            echo ""
+            echo "Lessons from this incident have been documented in \`docs/LESSONS_LEARNED.md\`."
+            echo ""
+            cat /tmp/learnings.md
+            echo ""
+            echo "---"
+            echo "## ✅ Pipeline Complete"
+            echo ""
+            echo "All stages finished:"
+            echo "- [x] Investigation"
+            echo "- [x] Fix Design"
+            echo "- [x] Implementation"
+            echo "- [x] Testing"
+            echo "- [x] Knowledge Update"
+            echo ""
+            echo "*This issue can now be closed after the PR is merged.*"
+          } > /tmp/comment.md
 
-          Lessons from this incident have been documented in \`docs/LESSONS_LEARNED.md\`.
-
-          ${{ steps.learn.outputs.learnings }}
-
-          ---
-          ## ✅ Pipeline Complete
-
-          All stages finished:
-          - [x] Investigation
-          - [x] Fix Design
-          - [x] Implementation
-          - [x] Testing
-          - [x] Knowledge Update
-
-          *This issue can now be closed after the PR is merged.*"
-
-          gh issue comment $ISSUE_NUMBER --body "$COMMENT"
+          gh issue comment $ISSUE_NUMBER --body-file /tmp/comment.md
 
           # Update checklist
-          CURRENT_BODY=$(gh issue view $ISSUE_NUMBER --json body -q .body)
-          UPDATED_BODY=$(echo "$CURRENT_BODY" | sed 's/- \[ \] Knowledge Update/- [x] Knowledge Update/')
-          gh issue edit $ISSUE_NUMBER --body "$UPDATED_BODY"
+          gh issue view $ISSUE_NUMBER --json body -q .body > /tmp/current_body.txt
+          sed 's/- \[ \] Knowledge Update/- [x] Knowledge Update/' /tmp/current_body.txt > /tmp/updated_body.txt
+          gh issue edit $ISSUE_NUMBER --body-file /tmp/updated_body.txt
