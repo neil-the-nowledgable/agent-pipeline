@@ -73,16 +73,19 @@ jobs:
       - name: Run Implementer Agent
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          npx @anthropic-ai/claude-code --print \
+          # Get design from file to avoid shell escaping issues
+          gh issue view ${{ steps.get-issue.outputs.issue_number }} --comments --json comments \
+            | jq -r '.comments[] | select(.body | contains("Fix Design")) | .body' \
+            | head -n 500 > /tmp/design.txt
+
+          # Run claude-code in non-interactive mode with allowedTools
+          npx @anthropic-ai/claude-code \
+            --allowedTools "Edit,Read,Write,Glob,Grep,Bash" \
+            --max-turns 15 \
             --system-prompt "$(cat agents/pipeline/implementer.md)" \
-            "Implement the fix specified in this design document:
-
-             ${{ steps.design.outputs.design }}
-
-             Follow the implementation instructions exactly.
-             Make the specified code changes.
-             Do NOT make any changes beyond what is specified."
+            -p "Implement the fix specified in this design document. First read /tmp/design.txt to understand the required changes. Then make the exact code changes specified. The design document contains the file paths and code changes needed. Follow the implementation instructions exactly. Do NOT make any changes beyond what is specified in the design."
 
       - name: Commit changes
         run: |
