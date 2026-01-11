@@ -25,6 +25,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-latest
+    outputs:
+      pr_number: ${{ steps.get-pr.outputs.pr_number }}
+      issue_number: ${{ steps.requirements.outputs.issue_number }}
     if: github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch' || github.event.label.name == 'pipeline:test'
 
     permissions:
@@ -149,3 +152,12 @@ jobs:
             sed 's/- \[ \] Testing/- [x] Testing/' /tmp/current_body.txt > /tmp/updated_body.txt
             gh issue edit $ISSUE_NUMBER --body-file /tmp/updated_body.txt
           fi
+
+  # Auto-trigger learn phase (fully autonomous mode)
+  learn:
+    needs: test
+    uses: ./.github/workflows/pipeline-learn.yml
+    with:
+      pr_number: ${{ needs.test.outputs.pr_number }}
+      issue_number: ${{ needs.test.outputs.issue_number }}
+    secrets: inherit

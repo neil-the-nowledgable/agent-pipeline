@@ -22,6 +22,8 @@ on:
 jobs:
   design:
     runs-on: ubuntu-latest
+    outputs:
+      issue_number: ${{ steps.get-issue.outputs.issue_number }}
     # Only run if triggered by label 'pipeline:design' or workflow_call
     if: github.event_name == 'workflow_call' || github.event_name == 'workflow_dispatch' || github.event.label.name == 'pipeline:design'
 
@@ -101,3 +103,11 @@ jobs:
           gh issue view ${{ steps.get-issue.outputs.issue_number }} --json body -q .body > /tmp/current_body.txt
           sed 's/- \[ \] Fix Design/- [x] Fix Design/' /tmp/current_body.txt > /tmp/updated_body.txt
           gh issue edit ${{ steps.get-issue.outputs.issue_number }} --body-file /tmp/updated_body.txt
+
+  # Auto-trigger implement phase (fully autonomous mode)
+  implement:
+    needs: design
+    uses: ./.github/workflows/pipeline-implement.yml
+    with:
+      issue_number: ${{ needs.design.outputs.issue_number }}
+    secrets: inherit

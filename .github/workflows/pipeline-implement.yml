@@ -29,6 +29,7 @@ jobs:
 
     outputs:
       pr_number: ${{ steps.create-pr.outputs.pr_number }}
+      issue_number: ${{ steps.get-issue.outputs.issue_number }}
 
     steps:
       - name: Checkout repository
@@ -158,3 +159,12 @@ jobs:
           CURRENT_BODY=$(gh issue view ${{ steps.get-issue.outputs.issue_number }} --json body -q .body)
           UPDATED_BODY=$(echo "$CURRENT_BODY" | sed 's/- \[ \] Implementation/- [x] Implementation/')
           gh issue edit ${{ steps.get-issue.outputs.issue_number }} --body "$UPDATED_BODY"
+
+  # Auto-trigger test phase (fully autonomous mode)
+  test:
+    needs: implement
+    uses: ./.github/workflows/pipeline-test.yml
+    with:
+      pr_number: ${{ needs.implement.outputs.pr_number }}
+      issue_number: ${{ needs.implement.outputs.issue_number }}
+    secrets: inherit

@@ -10,6 +10,8 @@ on:
 jobs:
   investigate:
     runs-on: ubuntu-latest
+    outputs:
+      issue_number: ${{ inputs.issue_number }}
 
     permissions:
       contents: read
@@ -87,11 +89,10 @@ jobs:
           mkdir -p .claude/pipeline/investigations
           cp /tmp/investigation.md .claude/pipeline/investigations/issue-${{ inputs.issue_number }}.md
 
-  # Optionally auto-trigger design phase
-  # Uncomment to make fully autonomous
-  # design:
-  #   needs: investigate
-  #   uses: ./.github/workflows/pipeline-design.yml
-  #   with:
-  #     issue_number: ${{ inputs.issue_number }}
-  #   secrets: inherit
+  # Auto-trigger design phase (fully autonomous mode)
+  design:
+    needs: investigate
+    uses: ./.github/workflows/pipeline-design.yml
+    with:
+      issue_number: ${{ needs.investigate.outputs.issue_number }}
+    secrets: inherit
