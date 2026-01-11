@@ -157,6 +157,8 @@ jobs:
   trigger-learn:
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
     steps:
       - name: Trigger learn workflow
         env:

@@ -108,6 +108,8 @@ jobs:
   trigger-implement:
     needs: design
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
     steps:
       - name: Trigger implement workflow
         env:

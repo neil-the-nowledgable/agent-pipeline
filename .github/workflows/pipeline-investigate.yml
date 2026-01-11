@@ -93,6 +93,8 @@ jobs:
   trigger-design:
     needs: investigate
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
     steps:
       - name: Trigger design workflow
         env:

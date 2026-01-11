@@ -164,6 +164,8 @@ jobs:
   trigger-test:
     needs: implement
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
     steps:
       - name: Trigger test workflow
         env:
