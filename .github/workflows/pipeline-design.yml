@@ -54,34 +54,29 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Get all comments to find investigation report
-          INVESTIGATION=$(gh issue view ${{ steps.get-issue.outputs.issue_number }} --comments --json comments \
-            | jq -r '.comments[] | select(.body | contains("Investigation Report")) | .body' \
-            | head -1)
+          # Get all comments to find investigation report (supports both regular and O11y reports)
+          gh issue view ${{ steps.get-issue.outputs.issue_number }} --comments --json comments \
+            | jq -r '.comments[] | select(.body | test("Investigation Report|O11y Investigation")) | .body' \
+            | head -n 500 > /tmp/investigation_report.txt
 
-          echo "report<<EOF" >> $GITHUB_OUTPUT
-          echo "$INVESTIGATION" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          echo "report_file=/tmp/investigation_report.txt" >> $GITHUB_OUTPUT
 
       - name: Run Fix Designer Agent
         id: design
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
-          DESIGN=$(npx @anthropic-ai/claude-code --print \
+          INVESTIGATION_CONTENT=$(cat /tmp/investigation_report.txt)
+
+          npx @anthropic-ai/claude-code --print \
             --system-prompt "$(cat agents/pipeline/designer.md)" \
             "Design a fix based on this investigation report:
 
-             ${{ steps.investigation.outputs.report }}
+             ${INVESTIGATION_CONTENT}
 
              Follow your design process. Read the relevant code files.
              Consider tradeoffs and alternatives.
-             Output a structured fix design document.")
-
-          echo "$DESIGN" > /tmp/design.md
-          echo "design<<EOF" >> $GITHUB_OUTPUT
-          echo "$DESIGN" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+             Output a structured fix design document." > /tmp/design.md
 
       - name: Update issue with design
         env:
