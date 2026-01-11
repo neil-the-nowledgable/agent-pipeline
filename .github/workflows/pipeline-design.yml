@@ -105,9 +105,14 @@ jobs:
           gh issue edit ${{ steps.get-issue.outputs.issue_number }} --body-file /tmp/updated_body.txt
 
   # Auto-trigger implement phase (fully autonomous mode)
-  implement:
+  trigger-implement:
     needs: design
-    uses: ./.github/workflows/pipeline-implement.yml
-    with:
-      issue_number: ${{ needs.design.outputs.issue_number }}
-    secrets: inherit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger implement workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run "Pipeline - Implement Fix" \
+            --repo ${{ github.repository }} \
+            -f issue_number="${{ needs.design.outputs.issue_number }}"

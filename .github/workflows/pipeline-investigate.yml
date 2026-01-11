@@ -90,9 +90,14 @@ jobs:
           cp /tmp/investigation.md .claude/pipeline/investigations/issue-${{ inputs.issue_number }}.md
 
   # Auto-trigger design phase (fully autonomous mode)
-  design:
+  trigger-design:
     needs: investigate
-    uses: ./.github/workflows/pipeline-design.yml
-    with:
-      issue_number: ${{ needs.investigate.outputs.issue_number }}
-    secrets: inherit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger design workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run "Pipeline - Design Fix" \
+            --repo ${{ github.repository }} \
+            -f issue_number="${{ needs.investigate.outputs.issue_number }}"

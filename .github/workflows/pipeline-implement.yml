@@ -161,10 +161,14 @@ jobs:
           gh issue edit ${{ steps.get-issue.outputs.issue_number }} --body "$UPDATED_BODY"
 
   # Auto-trigger test phase (fully autonomous mode)
-  test:
+  trigger-test:
     needs: implement
-    uses: ./.github/workflows/pipeline-test.yml
-    with:
-      pr_number: ${{ needs.implement.outputs.pr_number }}
-      issue_number: ${{ needs.implement.outputs.issue_number }}
-    secrets: inherit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger test workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run "Pipeline - Test Fix" \
+            --repo ${{ github.repository }} \
+            -f pr_number="${{ needs.implement.outputs.pr_number }}"

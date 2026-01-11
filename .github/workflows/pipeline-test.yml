@@ -154,10 +154,14 @@ jobs:
           fi
 
   # Auto-trigger learn phase (fully autonomous mode)
-  learn:
+  trigger-learn:
     needs: test
-    uses: ./.github/workflows/pipeline-learn.yml
-    with:
-      pr_number: ${{ needs.test.outputs.pr_number }}
-      issue_number: ${{ needs.test.outputs.issue_number }}
-    secrets: inherit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger learn workflow
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run "Pipeline - Update Knowledge" \
+            --repo ${{ github.repository }} \
+            -f issue_number="${{ needs.test.outputs.issue_number }}"
